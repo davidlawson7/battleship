@@ -1,1 +1,3 @@
 # battleship
+
+Battleships be cool!
