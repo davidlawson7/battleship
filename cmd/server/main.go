@@ -32,6 +32,7 @@ func main() {
 
     id := 0
     for {
+        slog.Info("Listening on :6446")
         conn, err := ln.Accept()
         if err != nil {
             slog.Error("Unable to accept a connection attempt")
@@ -51,15 +52,25 @@ func main() {
 }
 
 func handleClientConnection(conn *Connection) {
-    fmt.Println("Handling conn")
+    slog.Info("Handling connection")
+    cmdByte := make([]byte, 8)
     
-    // read from the user
-    cmdByte, err := conn.Reader.Read
-    if err != nil {
-        slog.Error("Unable to read from reader")
-    }
+    for {
+        // read from the user
+        n, err := conn.Reader.Read(cmdByte)
+        if err != nil {
+            if err == io.EOF {
+                slog.Debug("EOF")
+            } else {
+                slog.Error("Unable to read from reader")
+            }
+            break
+        }
 
-    fmt.Print(cmdByte)
+		fmt.Printf("cmdByte[:n] = %q\n", cmdByte[:n])
+
+    }
+    slog.Info("Closing connection")
     conn.conn.Close()
 }
 
