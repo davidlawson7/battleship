@@ -5,22 +5,33 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strconv"
+	"syscall"
+
+	"github.com/davidlawson7/battleship/pkg/commands"
+	"github.com/davidlawson7/battleship/pkg/tcp"
 )
 
-type Connection struct {
-    Reader io.Reader
-    Writer io.Writer
-    Id int
-    conn net.Conn
+type PlayerPool struct {
+    playerOne *tcp.Connection
+    playerTwo *tcp.Connection
 }
 
-func NewConnection(conn net.Conn, id int) Connection {
-    return Connection{
-        Reader: conn,
-        Writer: conn,
-        Id: id,
-        conn: conn,
+func newPlayerPool() PlayerPool {
+    return PlayerPool{}
+}
+
+func (p *PlayerPool) playerCount() int {
+    if p.playerOne != nil && p.playerTwo != nil {
+        return 2
     }
+
+    
+    if p.playerOne != nil || p.playerTwo != nil {
+        return 1
+    }
+
+    return 0
 }
 
 func main() {
@@ -31,8 +42,14 @@ func main() {
     }
 
     id := 0
+    connPool := newPlayerPool()
+
     for {
-        slog.Info("Listening on :6446")
+        if connPool.playerCount() == 2 {
+            break
+        }
+
+        slog.Info("Listening on :6446. " + strconv.Itoa(2 - connPool.playerCount()) + " Slots.")
         conn, err := ln.Accept()
         if err != nil {
             slog.Error("Unable to accept a connection attempt")
@@ -42,16 +59,25 @@ func main() {
         
         id++
 
-        newConn := NewConnection(conn, id)
+        newConn := tcp.NewConnection(conn, id)
+        if connPool.playerOne == nil {
+            connPool.playerOne = &newConn
+        } else {
+            connPool.playerTwo = &newConn
+        }
+
         // Welcome message to client
-        conn.Write([]byte{'w'})
-        
+        conn.Write([]byte(commands.WELCOME + " " + strconv.Itoa(id)))
+        conn.Write([]byte(commands.BROADCAST + " " + "1 Spot Left"))
         slog.Debug("New Connnection", "id", newConn.Id)
         go handleClientConnection(&newConn)
     }
+
+    connPool.playerOne.Writer.Write([]byte(commands.START))
+    connPool.playerTwo.Writer.Write([]byte(commands.START))
 }
 
-func handleClientConnection(conn *Connection) {
+func handleClientConnection(conn *tcp.Connection) {
     slog.Info("Handling connection")
     cmdByte := make([]byte, 8)
     
@@ -67,10 +93,11 @@ func handleClientConnection(conn *Connection) {
             break
         }
 
-		fmt.Printf("cmdByte[:n] = %q\n", cmdByte[:n])
+		fmt.Printf("cmdByte[:n] = %d\n", cmdByte[:n])
 
+        conn.Writer.Write([]byte{byte(syscall.SIGTERM)})
     }
     slog.Info("Closing connection")
-    conn.conn.Close()
+    conn.Conn.Close()
 }
 
