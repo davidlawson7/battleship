@@ -67,14 +67,15 @@ func main() {
         }
 
         // Welcome message to client
-        conn.Write([]byte(commands.WELCOME + " " + strconv.Itoa(id)))
-        conn.Write([]byte(commands.BROADCAST + " " + "1 Spot Left"))
+        conn.Write([]byte(commands.CommandNameLookup[commands.WELCOME] + " " + strconv.Itoa(id) + "\n"))
+        conn.Write([]byte(commands.CommandNameLookup[commands.BROADCAST] + " " + "1 Spot Left\n"))
+        
         slog.Debug("New Connnection", "id", newConn.Id)
         go handleClientConnection(&newConn)
     }
 
-    connPool.playerOne.Writer.Write([]byte(commands.START))
-    connPool.playerTwo.Writer.Write([]byte(commands.START))
+    connPool.playerOne.Writer.Write([]byte(commands.CommandNameLookup[commands.START]))
+    connPool.playerTwo.Writer.Write([]byte(commands.CommandNameLookup[commands.START]))
 }
 
 func handleClientConnection(conn *tcp.Connection) {

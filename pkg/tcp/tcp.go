@@ -1,9 +1,26 @@
 package tcp
 
 import (
+	"bufio"
 	"io"
 	"net"
 )
+
+type ClientConnection struct {
+    Conn    net.Conn
+    Id      int
+    Reader  bufio.Reader
+    Writer  bufio.Writer
+}
+
+func NewClientConnection(conn net.Conn, id int) ClientConnection {
+    return ClientConnection{
+        Conn: conn,
+        Id: id,
+        Reader: *bufio.NewReader(conn),
+        Writer: *bufio.NewWriter(conn),
+    }
+}
 
 type Connection struct {
     Reader io.Reader

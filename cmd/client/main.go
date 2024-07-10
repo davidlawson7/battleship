@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/davidlawson7/battleship/pkg/commands"
@@ -22,25 +21,33 @@ func main() {
     }
     defer conn.Close()
  
-    cmd := make([]byte, 1024)
-    n, err:= conn.Read(cmd)
+    clientConn := tcp.NewClientConnection(conn, 0)
+    cmd, err := clientConn.Reader.ReadString('\n')
 
     if err != nil {
-        slog.Error("unable to read byte")
+        slog.Error("unable to read from conn")
         os.Exit(1)
     }
-	fmt.Printf("client cmdByte[:n] = %s\n", string(cmd[:n]))
     
-    if n >= 9 && string(cmd[:7]) == commands.WELCOME {
-        id, err := strconv.Atoi(string(cmd[8:n]))
-        if err != nil {
-            fmt.Println("AH SHIT")
-            os.Exit(1)
-        } else {
-            newConn := tcp.NewConnection(conn, id)
-            go listener(&newConn) 
-        }
+    command := commands.ParseCmd(cmd)
+
+    if command.Command != commands.WELCOME {
+        slog.Error("We werent welcomes noob")
+        os.Exit(1)
     }
+
+    fmt.Println("Body", command.Body)
+
+    //if len(cmd) >= 9 && cmd[:7] == commands.WELCOME {
+    //    id, err := strconv.Atoi(cmd[8:len(cmd) - 1])
+    //    if err != nil {
+    //        fmt.Println("AH SHIT")
+    //        os.Exit(1)
+    //    } else {
+    //        newConn := tcp.NewConnection(conn, id)
+    //        go listener(&newConn) 
+    //    }
+    //}
 
     reader := bufio.NewReader(os.Stdin)
     // Spin up a routine to handle taking and sending user input, main routine
@@ -51,8 +58,12 @@ func main() {
         text = strings.Replace(text, "\n", "", -1)
         fmt.Printf("Said %s\n", text)
 
-        conn.Write([]byte(commands.START))
+        conn.Write([]byte(commands.CommandNameLookup[commands.START]))
     }
+}
+
+func handleWelcomeMessage() {
+    
 }
 
 func listener(conn *tcp.Connection) {    
@@ -70,7 +81,7 @@ func listener(conn *tcp.Connection) {
             break
         }
 
-		fmt.Printf("cmdByte[:n] = %d\n", cmdByte[:n])
+		fmt.Printf("client listener[:n] = %d\n", cmdByte[:n])
 
     }
     slog.Info("Closing connection")
